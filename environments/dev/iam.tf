@@ -17,7 +17,7 @@ resource "aws_iam_role" "ec2_dev" {
 # Policy attachment - defines what role is allowed to do
 # Attach the AWS-managed SSM policy (enables Session Manager)
 resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role = aws_iam_role.ec2_dev.name
+  role       = aws_iam_role.ec2_dev.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 

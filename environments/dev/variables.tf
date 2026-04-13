@@ -17,6 +17,6 @@ variable "environment" {
 }
 
 variable "developer_ip" {
-  description = "Developer IP address in CIDR notation"  # Security groups require CIDR notation when you're specifying IP addresses.
-  type = string
+  description = "Developer IP address in CIDR notation" # Security groups require CIDR notation when you're specifying IP addresses.
+  type        = string
 }

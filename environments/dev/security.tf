@@ -1,0 +1,48 @@
+# Security Group (Ingress & Egress)
+# Security Groups are stateful. Meaning if you allow inbound traffic on port 443, the response traffic is automatically allowed back out.
+# There is no "deny" rule. Everything not explicitly allowed is denied. You only write "allow" rules.
+resource "aws_security_group" "web" {
+    name = "dev-web-sg"
+    description = "Dev EC2: SSH from developers, HTTP/HTTPS from anywhere"
+    vpc_id = aws_vpc.main.id 
+
+    tags = {
+        Name = "${local.name_prefix}-sg"
+    }
+}
+
+# Ingress rule
+resource "aws_vpc_security_group_ingress_rule" "shh_from_devs" {
+  security_group_id = aws_security_group.web.id
+  ip_protocol = "tcp"
+  description = "SSH from developer IPs only"
+  cidr_ipv4 = var.developer_ip
+  from_port = 22
+  to_port = 22
+}
+
+resource "aws_vpc_security_group_ingress_rule" "http_public" {
+  security_group_id = aws_security_group.web.id
+  ip_protocol = "tcp"
+  description = "HTTP from anywhere"
+  from_port = 80
+  to_port = 80
+  cidr_ipv4 = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "https_public" {
+  security_group_id = aws_security_group.web.id
+  ip_protocol = "tcp"
+  description = "HTTPS from anywhere"
+  cidr_ipv4 = "0.0.0.0/0"
+  from_port = 443
+  to_port = 443
+}
+
+# Egress rule
+resource "aws_vpc_security_group_egress_rule" "all_out" {
+  security_group_id = aws_security_group.web.id
+  ip_protocol = "-1" # -1 means any protocol
+  description = "Allow all outbound"
+  cidr_ipv4 = "0.0.0.0/0"
+}

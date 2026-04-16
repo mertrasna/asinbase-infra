@@ -15,8 +15,3 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
-
-variable "developer_ip" {
-  description = "Developer IP address in CIDR notation" # Security groups require CIDR notation when you're specifying IP addresses.
-  type        = string
-}

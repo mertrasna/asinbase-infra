@@ -12,13 +12,17 @@ resource "aws_security_group" "web" {
 }
 
 # Ingress rule
-resource "aws_vpc_security_group_ingress_rule" "shh_from_devs" {
+resource "aws_vpc_security_group_ingress_rule" "ssh_public" {
   security_group_id = aws_security_group.web.id
   ip_protocol       = "tcp"
-  description       = "SSH from developer IPs only"
-  cidr_ipv4         = var.developer_ip
+  description       = "SSH from anywhere"
+  cidr_ipv4         = "0.0.0.0/0"
   from_port         = 22
   to_port           = 22
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "http_public" {

@@ -17,13 +17,13 @@ resource "aws_iam_role" "ec2_prod" {
 # Policy attachment - defines what role is allowed to do
 # Attach the AWS-managed SSM policy (enables Session Manager)
 resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role       = aws_iam_role.ec2_dev.name
+  role       = aws_iam_role.ec2_prod.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # Custom policy to read your SSM parameters
 resource "aws_iam_role_policy" "read_ssm_params" {
-  name = "dev-read-ssm-params"
+  name = "prod-read-ssm-params"
   role = aws_iam_role.ec2_dev.id
 
   policy = jsonencode({
@@ -43,6 +43,6 @@ resource "aws_iam_role_policy" "read_ssm_params" {
 
 # The instance profile - a wrapper around the role. EC2 can't attach a role directly. It attaches and instance profile
 resource "aws_iam_instance_profile" "ec2_dev" {
-  name = "dev-ec2-instance-profile"
-  role = aws_iam_role.ec2_dev.name
+  name = "prod-ec2-instance-profile"
+  role = aws_iam_role.ec2_prod.name
 }

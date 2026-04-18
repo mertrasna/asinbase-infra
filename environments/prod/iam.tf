@@ -24,7 +24,7 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 # Custom policy to read your SSM parameters
 resource "aws_iam_role_policy" "read_ssm_params" {
   name = "prod-read-ssm-params"
-  role = aws_iam_role.ec2_dev.id
+  role = aws_iam_role.ec2_prod.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -35,14 +35,14 @@ resource "aws_iam_role_policy" "read_ssm_params" {
         "ssm:GetParameters",
         "ssm:GetParametersByPath"
       ]
-      # Scope this to just your dev parameters — don't give access to all SSM params
-      Resource = "arn:aws:ssm:*:*:parameter/dev/*"
+      # Scope this to just your prod parameters — don't give access to all SSM params
+      Resource = "arn:aws:ssm:*:*:parameter/prod/*"
     }]
   })
 }
 
 # The instance profile - a wrapper around the role. EC2 can't attach a role directly. It attaches and instance profile
-resource "aws_iam_instance_profile" "ec2_dev" {
+resource "aws_iam_instance_profile" "ec2_prod" {
   name = "prod-ec2-instance-profile"
   role = aws_iam_role.ec2_prod.name
 }

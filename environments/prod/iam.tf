@@ -41,6 +41,29 @@ resource "aws_iam_role_policy" "read_ssm_params" {
   })
 }
 
+resource "aws_cloudwatch_log_group" "prod" {
+  name              = "/asinbase-backend/prod"
+  retention_in_days = 14
+}
+
+resource "aws_iam_role_policy" "cloudwatch_logs" {
+  name = "prod-cloudwatch-logs"
+  role = aws_iam_role.ec2_prod.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ]
+      Resource = "arn:aws:logs:*:*:log-group:/asinbase-backend/prod:*"
+    }]
+  })
+}
+
 # The instance profile - a wrapper around the role. EC2 can't attach a role directly. It attaches and instance profile
 resource "aws_iam_instance_profile" "ec2_prod" {
   name = "prod-ec2-instance-profile"

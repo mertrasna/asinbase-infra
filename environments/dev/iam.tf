@@ -41,6 +41,30 @@ resource "aws_iam_role_policy" "read_ssm_params" {
   })
 }
 
+# Cloutwatch group - just a container for log streams
+resource "aws_cloudwatch_log_group" "dev" {
+  name              = "/asinbase-backend/dev"
+  retention_in_days = 7
+}
+
+resource "aws_iam_role_policy" "cloudwatch_logs" {
+  name = "dev-cloudwatch-logs"
+  role = aws_iam_role.ec2_dev.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ]
+      Resource = "arn:aws:logs:*:*:log-group:/asinbase-backend/dev:*"
+    }]
+  })
+}
+
 # The instance profile - a wrapper around the role. EC2 can't attach a role directly. It attaches and instance profile
 resource "aws_iam_instance_profile" "ec2_dev" {
   name = "dev-ec2-instance-profile"

@@ -22,8 +22,8 @@ data "aws_ami" "ubuntu" {
 
 # EC2 instance
 resource "aws_instance" "dev" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro" # free tier eligible
+  ami           = var.ami_id
+  instance_type = var.instance_type
 
   # Network
   subnet_id                   = aws_subnet.public.id

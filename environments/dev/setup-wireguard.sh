@@ -17,7 +17,9 @@ set -euo pipefail
 # --- Configuration -----------------------------------------------------------
 WG_INTERFACE="wg0"
 WG_PORT=51820
-WG_NETWORK="10.0.0"
+# Use 192.168.100.0/24 — must not overlap with the VPC CIDR (10.0.0.0/16),
+# otherwise the EC2 routes VPN traffic out its primary ENI instead of wg0.
+WG_NETWORK="192.168.100"
 SERVER_IP="${WG_NETWORK}.1/24"
 
 # Teammates - add or remove as needed
@@ -121,6 +123,16 @@ echo "Enabling IP forwarding..."
 echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-wireguard.conf
 sysctl -p /etc/sysctl.d/99-wireguard.conf
 
+# --- Open UFW for WireGuard --------------------------------------------------
+# UFW is active by default on Ubuntu and silently drops UDP 51820 even when
+# the AWS Security Group allows it — both layers must permit the traffic.
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+  echo "Opening UFW for WireGuard..."
+  ufw allow ${WG_PORT}/udp comment 'WireGuard'
+  ufw allow in on ${WG_INTERFACE}
+  ufw reload
+fi
+
 # --- Start WireGuard ---------------------------------------------------------
 echo "Starting WireGuard..."
 systemctl enable wg-quick@${WG_INTERFACE}
@@ -138,7 +150,7 @@ echo ""
 echo "  Client configs are in: /etc/wireguard/clients/"
 echo ""
 for i in "${!PEERS[@]}"; do
-  echo "    ${PEERS[$i]}: 10.0.0.$((i+2))  ->  /etc/wireguard/clients/${PEERS[$i]}.conf"
+  echo "    ${PEERS[$i]}: ${WG_NETWORK}.$((i+2))  ->  /etc/wireguard/clients/${PEERS[$i]}.conf"
 done
 echo ""
 echo "  Next steps:"
@@ -147,6 +159,8 @@ echo "    2. Teammates install WireGuard app and import the .conf"
 echo "    3. Update your Terraform security groups:"
 echo "       - Add:    UDP ${WG_PORT} from 0.0.0.0/0"
 echo "       - Change: TCP 80, 443, 22 from 0.0.0.0/0 -> ${WG_NETWORK}.0/24"
+echo "    NOTE: ${WG_NETWORK}.0/24 is intentionally outside the VPC CIDR (10.0.0.0/16)"
+echo "          to avoid routing collisions on the EC2's primary ENI."
 echo "    4. Apply Terraform changes"
 echo "    5. Teammates connect VPN, then access dev at http://${WG_NETWORK}.1"
 echo ""

@@ -15,8 +15,8 @@ resource "aws_security_group" "web" {
 resource "aws_vpc_security_group_ingress_rule" "ssh_public" {
   security_group_id = aws_security_group.web.id
   ip_protocol       = "tcp"
-  description       = "SSH from anywhere"
-  cidr_ipv4         = "0.0.0.0/0"
+  description       = "SSH from VPN"
+  cidr_ipv4         = "10.0.0.0/24"
   from_port         = 22
   to_port           = 22
 
@@ -25,20 +25,29 @@ resource "aws_vpc_security_group_ingress_rule" "ssh_public" {
   }
 }
 
+resource "aws_vpc_security_group_ingress_rule" "wireguard_vpn" {
+  security_group_id = aws_security_group.web.id
+  ip_protocol       = "udp"
+  description       = "Wireguard vpn connection for securing development environment"
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 51820
+  to_port           = 51820
+}
+
 resource "aws_vpc_security_group_ingress_rule" "http_public" {
   security_group_id = aws_security_group.web.id
   ip_protocol       = "tcp"
-  description       = "HTTP from anywhere"
+  description       = "HTTP from VPN"
   from_port         = 80
   to_port           = 80
-  cidr_ipv4         = "0.0.0.0/0"
+  cidr_ipv4         = "10.0.0.0/24"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "https_public" {
   security_group_id = aws_security_group.web.id
   ip_protocol       = "tcp"
-  description       = "HTTPS from anywhere"
-  cidr_ipv4         = "0.0.0.0/0"
+  description       = "HTTPS from VPN"
+  cidr_ipv4         = "10.0.0.0/24"
   from_port         = 443
   to_port           = 443
 }

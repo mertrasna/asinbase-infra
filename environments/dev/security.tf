@@ -15,8 +15,8 @@ resource "aws_security_group" "web" {
 resource "aws_vpc_security_group_ingress_rule" "ssh_public" {
   security_group_id = aws_security_group.web.id
   ip_protocol       = "tcp"
-  description       = "SSH from VPN"
-  cidr_ipv4         = "10.0.0.0/24"
+  description       = "SSH fallback - remove once VPN is confirmed stable"
+  cidr_ipv4         = "0.0.0.0/0"
   from_port         = 22
   to_port           = 22
 
@@ -34,23 +34,6 @@ resource "aws_vpc_security_group_ingress_rule" "wireguard_vpn" {
   to_port           = 51820
 }
 
-resource "aws_vpc_security_group_ingress_rule" "http_public" {
-  security_group_id = aws_security_group.web.id
-  ip_protocol       = "tcp"
-  description       = "HTTP from VPN"
-  from_port         = 80
-  to_port           = 80
-  cidr_ipv4         = "10.0.0.0/24"
-}
-
-resource "aws_vpc_security_group_ingress_rule" "https_public" {
-  security_group_id = aws_security_group.web.id
-  ip_protocol       = "tcp"
-  description       = "HTTPS from VPN"
-  cidr_ipv4         = "10.0.0.0/24"
-  from_port         = 443
-  to_port           = 443
-}
 
 # Egress rule
 resource "aws_vpc_security_group_egress_rule" "all_out" {

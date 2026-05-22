@@ -56,7 +56,7 @@ resource "aws_eip" "dev" {
   }
 
   tags = {
-    Name = "$(local.name_prefix)-web-eip"
+    Name = "${local.name_prefix}-web-eip"
   }
 
   # Make sure the IGW exists before EIP association  

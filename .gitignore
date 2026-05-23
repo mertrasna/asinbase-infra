@@ -33,3 +33,5 @@ terraform.rc
 .idea/
 *.swp
 *.swo
+
+infrastructure_map.md

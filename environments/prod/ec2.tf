@@ -22,7 +22,7 @@ data "aws_ami" "ubuntu" {
 
 # EC2 instance
 resource "aws_instance" "prod" {
-  ami           = data.aws_ami.ubuntu.id
+  ami           = var.ami_id
   instance_type = "t3.medium" # free tier eligible
 
   # Network

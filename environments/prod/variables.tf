@@ -15,3 +15,9 @@ variable "environment" {
   type        = string
   default     = "prod"
 }
+
+variable "ami_id" {
+  description = "AMI ID for the prod instance. Ubuntu 24.04 LTS (Noble) amd64. Update deliberately via `terraform console` -> data.aws_ami.ubuntu_latest.id"
+  type        = string
+  default     = "ami-018f28221ffaa9b3b"
+}

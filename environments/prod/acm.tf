@@ -12,16 +12,6 @@ resource "aws_acm_certificate" "main" {
   }
 }
 
-output "acm_validation_records" {
-  value = {
-    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
-      name  = dvo.resource_record_name
-      type  = dvo.resource_record_type
-      value = dvo.resource_record_value
-    }
-  }
-  description = "CNAME records in Namecheap DNS config"
-}
 
 # safety net for cert validation
 resource "aws_acm_certificate_validation" "main" {

@@ -3,12 +3,12 @@ resource "aws_lb" "prod" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = [
-    aws_subnet.public.id,   
+  subnets = [
+    aws_subnet.public.id,
     aws_subnet.public_b.id,
   ]
 
-  enable_deletion_protection = false   # set to true once you're confident
+  enable_deletion_protection = true
   enable_http2               = true
   idle_timeout               = 60
 

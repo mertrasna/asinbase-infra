@@ -101,3 +101,46 @@ resource "aws_iam_role_policy" "night_down_scheduler_invoke" {
     }]
   })
 }
+
+# --- Schedules -------------------------------------------------------------
+# The clock. Two schedules invoke the same function with different intent.
+# cron format is 6 fields: (minute hour day-of-month month day-of-week year).
+# "?" means "no specific value" — required when day-of-month is set, since
+# day-of-month and day-of-week can't both be specified.
+
+# Stop at 00:00 Europe/Berlin, every day.
+resource "aws_scheduler_schedule" "dev_stop" {
+  name = "${local.name_prefix}-night-down-stop"
+
+  schedule_expression          = "cron(0 0 * * ? *)"
+  schedule_expression_timezone = "Europe/Berlin"
+
+  # Fire exactly on time rather than within a window.
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_function.night_down.arn
+    role_arn = aws_iam_role.night_down_scheduler.arn
+    input    = jsonencode({ action = "stop" })
+  }
+}
+
+# Start at 12:00 Europe/Berlin, every day.
+resource "aws_scheduler_schedule" "dev_start" {
+  name = "${local.name_prefix}-night-down-start"
+
+  schedule_expression          = "cron(0 12 * * ? *)"
+  schedule_expression_timezone = "Europe/Berlin"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_function.night_down.arn
+    role_arn = aws_iam_role.night_down_scheduler.arn
+    input    = jsonencode({ action = "start" })
+  }
+}

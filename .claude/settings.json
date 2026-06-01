@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /Users/mertrasna/Developer/asinbase-infra/environments/dev && echo \"=== lock file providers ===\" && grep -E 'provider|version' .terraform.lock.hcl && echo \"\" && echo \"=== required_providers anywhere? ===\" && grep -rn \"required_providers\\\\|archive\" *.tf && echo \"\" && echo \"=== ssh key present? ===\" && ls -la ~/.ssh/dev-ec2-key.pub 2>&1)",
+      "Read(//Users/mertrasna/.ssh/**)"
+    ]
+  }
+}

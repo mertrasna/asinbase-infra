@@ -58,6 +58,18 @@ Both environments have `user_data_replace_on_change = true`. Any edit to `user_d
 
 Dev is intended to be VPN-gated. See `environments/dev/wireguard.md` for the full plan. Current state: WireGuard is installed and running, UDP 51820 is open in the security group, but SSH (port 22) is still open to `0.0.0.0/0` as a fallback. HTTP/HTTPS ingress rules are intentionally absent from dev's security group — access is via VPN IP `192.168.100.1`.
 
+### Night-Down (Dev Only)
+
+Dev's EC2 instance is **stopped at 00:00 and started at 12:00 (Europe/Berlin), every day** to cut compute cost outside working hours. The instance is only *stopped*, never terminated — the EBS volume, instance ID, and Elastic IP all persist, so the VPN/SSH endpoint stays stable across the cycle. Defined in `environments/dev/night_down.tf` + `environments/dev/lambda/night_down.py`.
+
+Mechanism: two `aws_scheduler_schedule` (EventBridge Scheduler) resources invoke one Python Lambda. Each schedule passes `{"action": "stop"}` or `{"action": "start"}` as the event; the handler reads the instance from the `INSTANCE_ID` env var and calls the matching EC2 API. EventBridge Scheduler handles the Berlin timezone (incl. DST) natively — unlike the older UTC-only EventBridge Rules.
+
+Two scoped IAM roles: the Lambda **execution role** can `ec2:Start/StopInstances` on *only* the dev instance; the **scheduler role** can `lambda:InvokeFunction` on *only* the night-down function. The Lambda has no Function URL / API Gateway — it is not internet-reachable.
+
+This uses the `hashicorp/archive` provider (to zip the handler), declared in `backend.tf`. Run `terraform init` once after pulling this change to install it.
+
+To change the window, edit the `schedule_expression` cron in `night_down.tf` (6-field format: `cron(min hour day-of-month month day-of-week year)`; use `?` for the unused day field). For weekdays only: `cron(0 0 ? * MON-FRI *)`.
+
 ### IAM Scoping
 
 Each environment's IAM role is scoped to its own SSM path and CloudWatch log group — dev cannot read prod parameters and vice versa. The `AmazonSSMManagedInstanceCore` managed policy is attached to both, enabling SSM Session Manager as an alternative to SSH.

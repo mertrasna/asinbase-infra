@@ -1,24 +1,24 @@
 resource "aws_wafv2_web_acl" "prod" {
   name  = "${local.name_prefix}-waf"
-  scope = "REGIONAL"  # REGIONAL = ALB/API Gateway. CLOUDFRONT would need us-east-1.
+  scope = "REGIONAL" # REGIONAL = ALB/API Gateway. CLOUDFRONT would need us-east-1.
 
   default_action {
-    allow {}  # If no rule matches, allow the request through.
+    allow {} # If no rule matches, allow the request through.
   }
 
   visibility_config {
     cloudwatch_metrics_enabled = true
     metric_name                = "${local.name_prefix}-waf"
-    sampled_requests_enabled   = true  # Free sample of recent requests in console.
+    sampled_requests_enabled   = true # Free sample of recent requests in console.
   }
 
-    # ACL - access control list -
-    rule {
+  # ACL - access control list -
+  rule {
     name     = "AWSManagedRulesAmazonIpReputationList"
-    priority = 10  # Lower = evaluated first.
+    priority = 10 # Lower = evaluated first.
 
     override_action {
-      none {}  # Use the rule group's built-in actions (block).
+      none {} # Use the rule group's built-in actions (block).
       # Swap to `count {}` during shakedown to log-only.
     }
 

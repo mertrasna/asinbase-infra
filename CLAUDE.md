@@ -60,7 +60,7 @@ Dev is intended to be VPN-gated. See `environments/dev/wireguard.md` for the ful
 
 ### Night-Down (Dev Only)
 
-Dev's EC2 instance is **stopped at 00:00 and started at 12:00 (Europe/Berlin), every day** to cut compute cost outside working hours. The instance is only *stopped*, never terminated — the EBS volume, instance ID, and Elastic IP all persist, so the VPN/SSH endpoint stays stable across the cycle. Defined in `environments/dev/night_down.tf` + `environments/dev/lambda/night_down.py`.
+Dev's EC2 instance is **stopped at 00:00 and started at 08:00 (Europe/Berlin), every day** to cut compute cost outside working hours. The instance is only *stopped*, never terminated — the EBS volume, instance ID, and Elastic IP all persist, so the VPN/SSH endpoint stays stable across the cycle. Defined in `environments/dev/night_down.tf` + `environments/dev/lambda/night_down.py`.
 
 Mechanism: two `aws_scheduler_schedule` (EventBridge Scheduler) resources invoke one Python Lambda. Each schedule passes `{"action": "stop"}` or `{"action": "start"}` as the event; the handler reads the instance from the `INSTANCE_ID` env var and calls the matching EC2 API. EventBridge Scheduler handles the Berlin timezone (incl. DST) natively — unlike the older UTC-only EventBridge Rules.
 

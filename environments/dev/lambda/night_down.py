@@ -2,7 +2,7 @@
 
 Invoked by two EventBridge schedules:
   - {"action": "stop"}  at 00:00 Europe/Berlin -> power the instance off
-  - {"action": "start"} at 12:00 Europe/Berlin -> power it back on
+  - {"action": "start"} at 08:00 Europe/Berlin -> power it back on
 
 The instance ID is injected via the INSTANCE_ID environment variable, so the
 function stays generic and never has an instance ID hard-coded in it.

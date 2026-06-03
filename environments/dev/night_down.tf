@@ -1,4 +1,4 @@
-# Night-down: stop the dev instance at 00:00 and start it at 12:00 (Europe/Berlin)
+# Night-down: stop the dev instance at 00:00 and start it at 08:00 (Europe/Berlin)
 # to save compute cost outside working hours. Driven by two EventBridge schedules
 # that invoke a small Lambda. See Step 1 handler in lambda/night_down.py.
 
@@ -127,11 +127,11 @@ resource "aws_scheduler_schedule" "dev_stop" {
   }
 }
 
-# Start at 12:00 Europe/Berlin, every day.
+# Start at 08:00 Europe/Berlin, every day.
 resource "aws_scheduler_schedule" "dev_start" {
   name = "${local.name_prefix}-night-down-start"
 
-  schedule_expression          = "cron(0 12 * * ? *)"
+  schedule_expression          = "cron(0 8 * * ? *)"
   schedule_expression_timezone = "Europe/Berlin"
 
   flexible_time_window {

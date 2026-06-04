@@ -34,6 +34,24 @@ resource "aws_vpc_security_group_ingress_rule" "wireguard_vpn" {
   to_port           = 51820
 }
 
+resource "aws_vpc_security_group_ingress_rule" "https_public" {
+  security_group_id = aws_security_group.web.id
+  ip_protocol       = "tcp"
+  description       = "HTTPS from anywhere - required for external webhooks (e.g. Dodo Payments)"
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 443
+  to_port           = 443
+}
+
+resource "aws_vpc_security_group_ingress_rule" "http_public" {
+  security_group_id = aws_security_group.web.id
+  ip_protocol       = "tcp"
+  description       = "HTTP from anywhere - redirect to HTTPS"
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 80
+  to_port           = 80
+}
+
 
 # Egress rule
 resource "aws_vpc_security_group_egress_rule" "all_out" {

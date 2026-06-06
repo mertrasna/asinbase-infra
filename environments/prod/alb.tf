@@ -78,3 +78,25 @@ resource "aws_lb_listener" "https" {
     target_group_arn = aws_lb_target_group.prod.arn
   }
 }
+
+resource "aws_lb_listener_rule" "apex_redirect" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 1
+
+  condition {
+    host_header {
+      values = ["asinbase.com"]
+    }
+  }
+
+  action {
+    type = "redirect"
+
+    redirect {
+      host        = "www.asinbase.com"
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}

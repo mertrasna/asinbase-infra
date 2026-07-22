@@ -1,94 +1,242 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file guides AI agents and maintainers working on the Terraform in this repository. For the infrastructure contract relevant to backend and frontend development, read `APPLICATION_INFRASTRUCTURE.md`.
 
-## Common Commands
+The Terraform and boot scripts are the source of truth. Update this guide whenever an infrastructure change invalidates it.
 
-Each environment is self-contained. Always `cd` into the environment before running Terraform.
+## Working rules
+
+- `bootstrap/`, `environments/dev/`, and `environments/prod/` are separate Terraform roots. Always run Terraform inside the intended root or use `terraform -chdir=<root>`.
+- Never apply or destroy live infrastructure unless the user explicitly requests it. Inspect a saved or displayed plan before any authorized apply.
+- Treat dev and prod independently. Their code is intentionally duplicated and their topology has diverged; do not assume a change should be mirrored.
+- Preserve unrelated user changes in the worktree.
+- Keep credentials, secrets, real `*.tfvars`, state, and host-generated WireGuard keys out of Git.
+- Prefer narrowly scoped IAM and security-group changes. Do not broaden access just to make a deployment work.
+- Any edit to either `user_data.sh` replaces its EC2 instance because `user_data_replace_on_change = true`.
+- Prod changes require extra care: its instance is the only ALB target, its root disk is retained but not automatically reattached after replacement, and the ALB has deletion protection.
+- Treat `waf.tf` and `security.tf` as authoritative. The older `waf-plan.md` and `wireguard.md` contain known drift.
+
+## Common commands
+
+Each environment is self-contained:
 
 ```bash
-cd environments/dev   # or environments/prod
+terraform -chdir=environments/dev init
+terraform -chdir=environments/dev fmt -check -diff
+terraform -chdir=environments/dev validate
+terraform -chdir=environments/dev plan
 
-terraform init        # first time, or after provider/backend changes
-terraform validate    # check syntax
-terraform fmt -check  # check formatting (use -diff to see changes)
-terraform fmt         # auto-format
-terraform plan        # preview changes
-terraform apply       # apply changes
+terraform -chdir=environments/prod init
+terraform -chdir=environments/prod fmt -check -diff
+terraform -chdir=environments/prod validate
+terraform -chdir=environments/prod plan
 ```
 
-Bootstrap (one-time, already done):
+Bootstrap was a one-time operation:
+
 ```bash
-cd bootstrap
-terraform init && terraform apply
+terraform -chdir=bootstrap init
+terraform -chdir=bootstrap plan
 ```
 
-## Architecture
+Do not casually reapply or destroy bootstrap. It owns the remote-state bucket and uses local state.
 
-### Environment Layout
+Planning requires AWS credentials, S3 backend access, and the environment's SSH public key:
 
-Two live environments (`dev`, `prod`) that share a common base (VPC, EC2, IAM role, CloudWatch log group, SSM-into-`.env` boot) but have **diverged** in shape. `staging/` is a placeholder with no Terraform code (`staging/info.txt` only).
+- dev: `~/.ssh/dev-ec2-key.pub`
+- prod: `~/.ssh/prod-ec2-key.pub`
 
-The environments are **not** identical anymore:
-- **Dev** adds WireGuard VPN ingress and the Night-Down stop/start Lambda. Single public subnet, instance type `var.instance_type` (default `t3.small`), 20 GB EBS that **is** deleted on termination, `hashicorp/archive` provider for the Lambda zip.
-- **Prod** adds a public-facing stack: ALB + ACM certificate + WAFv2. Two public subnets across AZs `a`/`b` (an ALB requires ≥2 AZs), instance type hardcoded `t3.medium`, 30 GB EBS that is **not** deleted on termination.
+If the provider cache is missing or stale, run `terraform init` before `validate`. Commit lock-file changes only when provider selection was intentionally changed.
 
-Each environment is fully independent — separate VPC, EC2, IAM role, CloudWatch log group, and S3 state key. There are no shared modules; code is intentionally duplicated to keep environments independently manageable.
+## Repository layout and state
 
-Remote state is stored in S3 (`asinbase-tfstate-eu-central-1-d2d3980f`) with state locking via `use_lockfile = true`.
+```text
+bootstrap/                 Creates the S3 remote-state bucket; local Terraform state
+environments/dev/          Live dev environment
+environments/prod/         Live production environment
+environments/staging/      Placeholder only; no Terraform code
+APPLICATION_INFRASTRUCTURE.md
+                           App-facing contract for backend/frontend agents
+```
 
-### AMI Strategy
+The live environments use S3 backend bucket `asinbase-tfstate-eu-central-1-d2d3980f` with encryption and native S3 lock files:
 
-**Both** dev and prod pin the AMI via `var.ami_id` (same hardcoded default `ami-018f28221ffaa9b3b`, Ubuntu 24.04 LTS Noble amd64, in each env's `variables.tf`). The `data.aws_ami.ubuntu` block exists in both `ec2.tf` files for reference but is **not** wired into the instance — `aws_instance` reads `var.ami_id`, not the data source. To bump deliberately, run `terraform console` → `data.aws_ami.ubuntu.id` to get the latest ID, then update the `ami_id` default.
+- dev key: `environments/dev/terraform.tfstate`
+- prod key: `environments/prod/terraform.tfstate`
 
-(Note: the `ami_id` variable description in `variables.tf` references `data.aws_ami.ubuntu_latest.id`, but the actual data source is named `data.aws_ami.ubuntu` — the `_latest` suffix is stale.)
+Bootstrap creates a versioned, private S3 bucket with a random suffix and `prevent_destroy`. Because bootstrap has no backend block, its state remains local and is ignored by Git. Migrating or renaming the live backend requires an explicit state-migration plan.
 
-### SSH Key Requirement
+Terraform requires `~> 1.10`; the AWS provider constraint is `~> 6.40`. Bootstrap additionally uses `hashicorp/random`; dev uses `hashicorp/archive` for the Night-Down Lambda package.
 
-`terraform plan/apply` requires the SSH public key to exist locally:
-- Dev: `~/.ssh/dev-ec2-key.pub`
-- Prod: `~/.ssh/prod-ec2-key.pub`
+Both AWS provider blocks hardcode `eu-central-1`. `var.aws_region` is used to form availability-zone names but does not configure the provider. Do not change only that variable to move regions.
 
-If the file is missing, generate it from the private key: `ssh-keygen -y -f ~/.ssh/dev-ec2-key > ~/.ssh/dev-ec2-key.pub`
+## Architecture summary
 
-### user_data Behavior
+| Concern | Dev | Prod |
+|---|---|---|
+| VPC | `10.0.0.0/16` | `10.0.0.0/16` |
+| Public subnets | One, `10.0.1.0/24`, AZ `a` | Two, `10.0.1.0/24` and `10.0.2.0/24`, AZs `a`/`b` |
+| EC2 | `var.instance_type`, default `t3.small` | Hardcoded `t3.medium` |
+| Root EBS | 20 GiB gp3, encrypted, deleted on termination | 30 GiB gp3, encrypted, retained on termination |
+| Public address | Elastic IP, `prevent_destroy` | Elastic IP, `prevent_destroy` |
+| Web entry | Direct EC2 ingress on 80/443 | WAF-protected ALB on 80/443 |
+| SSH | Public on 22 | Public on 22 |
+| Additional features | WireGuard ingress; nightly stop/start | ACM, ALB, WAF |
+| App log group | 7-day retention | 14-day retention |
 
-Both environments have `user_data_replace_on_change = true`. Any edit to `user_data.sh` will **destroy and recreate the EC2 instance** on the next `terraform apply`. This is intentional for dev but high-risk for prod — always plan carefully before touching prod's `user_data.sh`.
+The VPCs are independent despite overlapping CIDRs. There is no peering, NAT gateway, or private subnet. Both EC2 instances are in public subnets with unrestricted outbound security-group traffic.
 
-`user_data.sh` fetches SSM parameters at boot into `/opt/myapp/.env`. SSM paths:
-- Dev: `/dev/backend/*`
-- Prod: `/prod/backend/*` (**known bug**: prod's `user_data.sh` currently fetches from `/dev/backend/` — the IAM policy denies it so `.env` is written empty. A manual `refresh_env` script on the instance corrects this at runtime.)
+## File ownership
 
-### Prod Public Stack: ALB + ACM + WAF (Prod Only)
+| File | Responsibility |
+|---|---|
+| `backend.tf` | Terraform/provider requirements and live S3 backend |
+| `providers.tf` | AWS provider region and default tags |
+| `variables.tf`, `locals.tf` | Inputs and resource-name prefix |
+| `network.tf` | VPC, subnet(s), internet gateway, public route table |
+| `security.tf` | Security groups and ingress/egress rules |
+| `ec2.tf` | SSH key pair, AMI lookup, instance, disk, Elastic IP |
+| `iam.tf` | EC2 role/profile, SSM access, log group and log permissions |
+| `user_data.sh` | First-boot package installation and `.env` generation |
+| `dev/night_down.tf` | Lambda package, roles, function, schedules |
+| `dev/lambda/night_down.py` | EC2 start/stop handler |
+| `dev/setup-wireguard.sh` | Manual WireGuard setup; Terraform does not execute it |
+| `prod/acm.tf` | ACM certificate and validation waiter |
+| `prod/alb.tf` | ALB, target group, listeners and apex redirect |
+| `prod/waf.tf` | WAF rules and ALB association |
+| `outputs.tf` | Connection details and external DNS handoff values |
 
-Prod is reached through a public **Application Load Balancer**, not directly. Dev has none of this (it is VPN-gated).
+There are no shared modules. Duplication is deliberate so each environment can evolve independently.
 
-**Traffic path:** Internet → ALB (WAF attached) → EC2 on port 80.
+## AMI and EC2 lifecycle
 
-- **ALB** (`environments/prod/alb.tf`): internet-facing, across both public subnets. `enable_deletion_protection = true`, `idle_timeout = 60`. Two listeners — `:80` 301-redirects to `:443`; `:443` (TLS 1.3 policy `ELBSecurityPolicy-TLS13-1-2-2021-06`) forwards to the target group. **TLS terminates at the ALB**; the EC2 instance only serves plain HTTP on 80.
-  - Target group health check: `GET /health` on the traffic port, expects `200`, `interval=30`, `timeout=5`, healthy/unhealthy thresholds 2/3, `deregistration_delay=30`.
-  - If you raise `idle_timeout`, raise the instance's nginx `proxy_read_timeout` / Gunicorn `--timeout` above it too, or long requests get cut / cause 502s.
-- **Security groups** (`environments/prod/security.tf`): the **ALB SG** allows `0.0.0.0/0` on 80/443. The **EC2 web SG** allows port 80 **only from the ALB SG** (no public HTTP/HTTPS direct to the instance) plus SSH 22 from `0.0.0.0/0`. So prod web traffic must go through the ALB.
-- **ACM** (`environments/prod/acm.tf`): cert for `asinbase.com` + `*.asinbase.com`, **DNS validation**. DNS is managed in **Namecheap** (not Route 53), so validation/CNAME records are emitted as outputs (`acm_validation_records`, `alb_dns_name`, `alb_zone_id`) to copy in by hand. `aws_acm_certificate_validation` waits up to 30m.
-- **WAF** (`environments/prod/waf.tf`): regional WAFv2 Web ACL associated with the ALB, default action `allow`. Rule modes currently differ from the original plan — **enforced (block)**: AmazonIpReputationList (p10), KnownBadInputs (p30), and the custom per-IP rate limit (p100, 2000 req / 5 min / IP). **Count/log-only (shakedown)**: CommonRuleSet (p20), SQLi (p40), LinuxRuleSet (p50). To enforce a Count rule, remove its `override_action { count {} }` so it falls back to the group's block action.
-  - `environments/prod/waf-plan.md` is the **original design doc** and has drifted: it describes WAF logging (`aws-waf-logs-*` log group + `logging_configuration`) and `waf_*` outputs that are **not** implemented in `waf.tf`/`outputs.tf`. Treat `waf.tf` as the source of truth.
+Both environments pin `aws_instance.ami` to `var.ami_id`, currently `ami-018f28221ffaa9b3b` for Ubuntu 24.04 Noble amd64. `data.aws_ami.ubuntu` discovers the latest matching Canonical image but is not connected to the instance.
 
-### WireGuard VPN (Dev Only)
+To update the AMI deliberately:
 
-Dev is intended to be VPN-gated. See `environments/dev/wireguard.md` for the full plan. Current state: WireGuard is installed and running, UDP 51820 is open in the security group, but SSH (port 22) is still open to `0.0.0.0/0` as a fallback. HTTP/HTTPS ingress rules are intentionally absent from dev's security group — access is via VPN IP `192.168.100.1`.
+1. Initialize the environment.
+2. Inspect `data.aws_ami.ubuntu.id`, for example through `terraform console`.
+3. Update the pinned `ami_id` default or provide an explicit override.
+4. Review the replacement plan and arrange application redeployment.
 
-### Night-Down (Dev Only)
+The variable descriptions incorrectly mention `data.aws_ami.ubuntu_latest.id`; the real data source is `data.aws_ami.ubuntu`.
 
-Dev's EC2 instance is **stopped at 00:00 and started at 08:00 (Europe/Berlin), every day** to cut compute cost outside working hours. The instance is only *stopped*, never terminated — the EBS volume, instance ID, and Elastic IP all persist, so the VPN/SSH endpoint stays stable across the cycle. Defined in `environments/dev/night_down.tf` + `environments/dev/lambda/night_down.py`.
+Replacement effects:
 
-Mechanism: two `aws_scheduler_schedule` (EventBridge Scheduler) resources invoke one Python Lambda. Each schedule passes `{"action": "stop"}` or `{"action": "start"}` as the event; the handler reads the instance from the `INSTANCE_ID` env var and calls the matching EC2 API. EventBridge Scheduler handles the Berlin timezone (incl. DST) natively — unlike the older UTC-only EventBridge Rules.
+- Dev loses its root disk, deployed app state, and manually generated WireGuard configuration.
+- Prod leaves the old root volume behind but boots from a new volume; Terraform does not reattach the old one.
+- Elastic IPs normally survive and re-associate, but their `prevent_destroy` blocks a full environment destroy.
+- Terraform does not redeploy the application after instance replacement.
 
-Two scoped IAM roles: the Lambda **execution role** can `ec2:Start/StopInstances` on *only* the dev instance; the **scheduler role** can `lambda:InvokeFunction` on *only* the night-down function. The Lambda has no Function URL / API Gateway — it is not internet-reachable.
+## Boot-time behavior
 
-This uses the `hashicorp/archive` provider (to zip the handler), declared in `backend.tf`. Run `terraform init` once after pulling this change to install it.
+Both `user_data.sh` scripts:
 
-To change the window, edit the `schedule_expression` cron in `night_down.tf` (6-field format: `cron(min hour day-of-month month day-of-week year)`; use `?` for the unused day field). For weekdays only: `cron(0 0 ? * MON-FRI *)`.
+1. Upgrade Ubuntu.
+2. Install base tools, UFW, fail2ban, and unattended upgrades.
+3. Install Docker Engine, Buildx, and Docker Compose from Docker's repository.
+4. Configure Docker JSON-log rotation at 10 MiB with three files.
+5. Install the x86_64 AWS CLI v2.
+6. Install/start nginx and write a placeholder page.
+7. Open OpenSSH and `Nginx Full` in UFW.
+8. Create `/opt/myapp/.env` from SSM Parameter Store.
 
-### IAM Scoping
+They do not deploy the application, configure nginx as an app reverse proxy, start containers, create the ALB `/health` response, or configure CloudWatch log shipping.
 
-Each environment's IAM role is scoped to its own SSM path and CloudWatch log group — dev cannot read prod parameters and vice versa. The `AmazonSSMManagedInstanceCore` managed policy is attached to both, enabling SSM Session Manager as an alternative to SSH.
+SSM parameters are flattened by basename and uppercased. Dev correctly requests `/dev/backend/`. Prod currently also requests `/dev/backend/`, but its IAM role permits only `/prod/*`; the failure is suppressed and usually produces `# No SSM params yet`. The intended prod path is `/prod/backend/`. Fixing it in user data replaces prod EC2, so plan the migration rather than applying the one-line change casually.
+
+## Dev specifics
+
+The current security group publicly exposes:
+
+- TCP 22: SSH fallback
+- TCP 80: HTTP, including external webhook access
+- TCP 443: HTTPS, including external webhook access
+- UDP 51820: WireGuard
+
+All are open to `0.0.0.0/0`. Dev is not currently VPN-only, despite older documentation. The boot script does not provision a dev certificate or nginx TLS configuration; opening port 443 alone does not make HTTPS functional.
+
+`setup-wireguard.sh` is manual host configuration. It creates `wg0` at `192.168.100.1/24`, generates server and peer keys, enables forwarding/NAT, opens UFW, and starts `wg-quick@wg0`. Generated keys and client configs exist only on the instance unless securely backed up.
+
+Night-Down uses two EventBridge Scheduler resources and one Python 3.12 Lambda:
+
+- stop at 00:00 Europe/Berlin every day;
+- start at 08:00 Europe/Berlin every day.
+
+The Lambda role can start/stop only the Terraform-managed dev instance. The scheduler role can invoke only that Lambda. Stopping preserves instance identity, root disk, and EIP. The schedule uses the Berlin timezone, so AWS handles DST.
+
+`data.archive_file.night_down` generates `lambda/night_down.zip` from `night_down.py`. Edit the Python source rather than the zip. A plan may regenerate the committed zip; review the diff before committing it.
+
+## Prod specifics
+
+Traffic flows through the internet-facing ALB:
+
+```text
+Internet -> WAF-protected ALB -> HTTPS listener -> target group -> EC2 HTTP :80
+```
+
+- Port 80 on the ALB redirects to HTTPS.
+- ACM terminates TLS for `asinbase.com` and `*.asinbase.com`.
+- Requests with host `asinbase.com` redirect to `https://www.asinbase.com`.
+- All other hosts and paths use the single default target group.
+- The EC2 web security group permits port 80 only from the ALB security group.
+- SSH remains public on port 22.
+- ALB deletion protection is enabled; HTTP/2 is enabled; idle timeout is 60 seconds.
+
+The target group contains one EC2 target. Its health check is HTTP `GET /health`, expects only `200`, runs every 30 seconds with a 5-second timeout, and uses thresholds 2 healthy / 3 unhealthy. Deregistration delay is 30 seconds. Fresh user data does not create `/health`, so application deployment is required before the target becomes healthy.
+
+ACM uses DNS validation with a 30-minute create timeout. DNS is external, currently Namecheap; this repository creates no Route 53 records. Outputs expose the required validation records and ALB DNS name. Certificate and DNS changes can require manual coordination during apply.
+
+### WAF source of truth
+
+`environments/prod/waf.tf` currently defines:
+
+| Priority | Rule | Mode |
+|---:|---|---|
+| 10 | Amazon IP Reputation | Enforced managed actions |
+| 20 | Common Rule Set | Count only |
+| 30 | Known Bad Inputs | Enforced managed actions |
+| 40 | SQLi Rule Set | Count only |
+| 50 | Linux Rule Set | Count only |
+| 100 | 2,000 requests per 5 minutes per IP | Block |
+
+The ACL defaults to allow. Metrics and sampled requests are enabled. Full WAF request logging, redaction configuration, WAF outputs, and the Anonymous IP managed group described in `waf-plan.md` are not implemented.
+
+## IAM and observability
+
+Each EC2 role has:
+
+- `AmazonSSMManagedInstanceCore` for SSM managed-instance features;
+- read access to only its environment's SSM path;
+- write access to only its environment's application log group.
+
+Log groups are `/asinbase-backend/dev` with 7-day retention and `/asinbase-backend/prod` with 14-day retention. No CloudWatch agent, Docker CloudWatch driver, or application log integration is configured, so creating the groups and permissions does not ship logs.
+
+The Night-Down Lambda separately uses `AWSLambdaBasicExecutionRole` for its logs and a narrowly scoped EC2 start/stop policy.
+
+## Pre-apply checklist
+
+Before any explicitly authorized apply:
+
+1. Confirm the Terraform root, workspace, AWS account, region, and caller identity.
+2. Confirm backend initialization and the expected remote-state key.
+3. Run `fmt -check` and `validate`.
+4. Review every plan action, especially instance replacement, retained/deleted disks, IAM broadening, public ingress, ALB replacement, and certificate validation.
+5. For EC2 replacement, account for application redeployment, `/opt/myapp/.env`, `/health`, host-local data, and dev WireGuard material.
+6. For prod, plan around its single target and external DNS requirements.
+7. Do not bypass EIP `prevent_destroy` or ALB deletion protection without confirming destruction is intended.
+
+After apply, verify the relevant outputs and live behavior: EC2 boot logs, SSM connectivity, nginx/Docker status, application deployment, target health, HTTPS redirects, DNS, and WAF metrics.
+
+## Known drift and gaps
+
+- Dev is documented elsewhere as VPN-only, but 22/80/443/51820 are currently public.
+- `wireguard.md` contains stale command paths and describes security-group restrictions not present in current Terraform.
+- Prod user data reads the wrong SSM path and writes a dev-labelled placeholder page.
+- AMI variable descriptions reference a nonexistent data-source name.
+- `waf-plan.md` describes rules, logging, and outputs that differ from `waf.tf`.
+- CloudWatch log groups exist without log shipping.
+- The infrastructure prepares hosts but does not deploy the backend or frontend.
+- Staging is only a placeholder.
+
+Keep this file and `APPLICATION_INFRASTRUCTURE.md` synchronized with infrastructure changes, at their respective levels of detail.

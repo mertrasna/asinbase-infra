@@ -148,7 +148,22 @@ Terraform creates these CloudWatch log groups:
 - `/asinbase-backend/dev`, retained 7 days
 - `/asinbase-backend/prod`, retained 14 days
 
-However, infrastructure does not configure a CloudWatch agent or Docker logging driver to send application logs there. Having the log group and IAM permission does not mean logs are being shipped. Application/deployment work must add log shipping if it is required.
+Terraform does not configure a CloudWatch agent or Docker logging driver. The application repository's development and production Compose files supply that runtime integration with Docker's `awslogs` driver and fixed `backend` and `worker` streams. Application deployments must preserve those group and stream names; replacing the Compose logging configuration would silently break the metrics below even though Terraform remained healthy.
+
+Both environments also define Watchlist threshold observability from raw JSON events on the application log group. Metric filters publish into separate `Asinbase/WatchlistThresholds/dev` and `Asinbase/WatchlistThresholds/prod` namespaces. CloudWatch alarms cover:
+
+- no successful `watchlist_threshold_evaluation_complete` event for 26 consecutive hours;
+- `oldest_pending_age_seconds` above 24 hours in a `watchlist_threshold_delivery_health` event;
+- any failed delivery-health database read (`success: false`);
+- any `watchlist_threshold_dead_batch` event;
+- `fresh_cache_coverage_pct` below the configured threshold, initially 90%;
+- successful-run `trigger_volume` (live `triggered` plus shadow `would_trigger`) outside a two-standard-deviation CloudWatch anomaly band.
+
+The trigger-volume filter emits zero during non-evaluation periods and the alarm aggregates hourly, allowing CloudWatch to learn the expected daily run pattern during shadow as well as live delivery. A new anomaly model can take up to two weeks to train; verify and tune it during shadow/canary rollout rather than treating its initial band as authoritative.
+
+These filters require the complete log event to be valid JSON; JSON embedded inside the application's normal prefixed text formatter does not match. Only events with JSON boolean `success: true` update normal health metrics. A `success: false` delivery-health event updates a separate failure metric, so a failed database health read alerts without resetting an existing pending-age alarm. Successful delivery health must report zero for an empty pending queue, and an evaluation with no configured metrics must report 100% coverage so alarms can recover cleanly.
+
+Terraform always creates the environment's SNS topic, but alarm actions are disabled by default. Supplying `watchlist_threshold_alarm_email` enables alarm and recovery actions and creates an email subscription; the recipient must confirm that subscription before notifications are delivered. The missing-evaluation alarm treats absent data as breaching, so produce and verify a successful event after first apply before enabling email actions.
 
 The EC2 role includes `AmazonSSMManagedInstanceCore`, so SSM Session Manager is intended as an administrative access method. SSH also remains public in both environments. Application code should not need AWS credentials on disk; software using the AWS SDK on EC2 should use the instance role when its permissions are sufficient.
 
@@ -195,7 +210,8 @@ There is no automatic app redeployment after Terraform replaces an instance. Inf
 - `/health` exists automatically; the app/deployment must provide it.
 - SSM changes automatically reach a running app.
 - Prod's boot-generated `.env` is correct; it currently has a path bug.
-- CloudWatch application logging is configured; only groups and permissions exist.
+- Terraform alone configures CloudWatch application log shipping; the required Docker `awslogs` integration lives in the application repository.
+- All application log lines are structured JSON; only the dedicated Watchlist threshold health events have that contract.
 - A wildcard certificate means a subdomain has DNS or separate routing.
 - Frontend hosting, API routing, CORS, backups, monitoring, alerts, or CI/CD are supplied by this repository.
 - Data written to an EC2 root disk survives a Terraform replacement in a usable, attached form.
@@ -227,6 +243,7 @@ For questions that require checking implementation, use these files in `asinbase
 | Instance type, disk, AMI, replacement behavior | `environments/<env>/ec2.tf` |
 | Host packages and `.env` generation | `environments/<env>/user_data.sh` |
 | IAM and log groups | `environments/<env>/iam.tf` |
+| Watchlist threshold metrics, alarms, and SNS | `environments/<env>/watchlist_threshold_observability.tf` |
 | Dev stop/start window | `environments/dev/night_down.tf` |
 | Manual dev VPN | `environments/dev/setup-wireguard.sh` |
 | Production listener, routing, timeout, health check | `environments/prod/alb.tf` |

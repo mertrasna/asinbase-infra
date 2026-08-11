@@ -27,3 +27,32 @@ variable "instance_type" {
   type        = string
   default     = "t3.small"
 }
+
+variable "watchlist_threshold_alarm_email" {
+  description = "Optional email subscribed to Watchlist threshold CloudWatch alarm notifications. The AWS subscription must be confirmed before delivery starts."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition = (
+      var.watchlist_threshold_alarm_email == null
+      || can(regex("^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$", var.watchlist_threshold_alarm_email))
+    )
+    error_message = "watchlist_threshold_alarm_email must be null or a valid email address."
+  }
+}
+
+variable "watchlist_threshold_min_fresh_coverage_pct" {
+  description = "Minimum acceptable percentage of configured Watchlist threshold metrics backed by fresh canonical cache data. Tune after shadow telemetry."
+  type        = number
+  default     = 90
+
+  validation {
+    condition = (
+      var.watchlist_threshold_min_fresh_coverage_pct >= 0
+      && var.watchlist_threshold_min_fresh_coverage_pct <= 100
+    )
+    error_message = "watchlist_threshold_min_fresh_coverage_pct must be between 0 and 100."
+  }
+}

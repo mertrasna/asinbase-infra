@@ -83,6 +83,7 @@ Both AWS provider blocks hardcode `eu-central-1`. `var.aws_region` is used to fo
 | SSH | Public on 22 | Public on 22 |
 | Additional features | WireGuard ingress; nightly stop/start | ACM, ALB, WAF |
 | App log group | 7-day retention | 14-day retention |
+| Watchlist threshold alarms | CloudWatch; email opt-in | CloudWatch; email opt-in |
 
 The VPCs are independent despite overlapping CIDRs. There is no peering, NAT gateway, or private subnet. Both EC2 instances are in public subnets with unrestricted outbound security-group traffic.
 
@@ -97,6 +98,7 @@ The VPCs are independent despite overlapping CIDRs. There is no peering, NAT gat
 | `security.tf` | Security groups and ingress/egress rules |
 | `ec2.tf` | SSH key pair, AMI lookup, instance, disk, Elastic IP |
 | `iam.tf` | EC2 role/profile, SSM access, log group and log permissions |
+| `watchlist_threshold_observability.tf` | Watchlist threshold log metrics, alarms, and optional SNS email delivery |
 | `user_data.sh` | First-boot package installation and `.env` generation |
 | `dev/night_down.tf` | Lambda package, roles, function, schedules |
 | `dev/lambda/night_down.py` | EC2 start/stop handler |
@@ -210,7 +212,11 @@ Each EC2 role has:
 - read access to only its environment's SSM path;
 - write access to only its environment's application log group.
 
-Log groups are `/asinbase-backend/dev` with 7-day retention and `/asinbase-backend/prod` with 14-day retention. No CloudWatch agent, Docker CloudWatch driver, or application log integration is configured, so creating the groups and permissions does not ship logs.
+Log groups are `/asinbase-backend/dev` with 7-day retention and `/asinbase-backend/prod` with 14-day retention. Terraform does not install a CloudWatch agent or configure Docker, but the application repository's Compose files use Docker's `awslogs` driver and publish fixed `backend` and `worker` streams to these groups. Preserve that cross-repository contract when changing either side.
+
+Each environment's `watchlist_threshold_observability.tf` converts raw JSON worker health events into an environment-specific `Asinbase/WatchlistThresholds/<env>` metric namespace. It alarms on a missing successful evaluation for 26 hours, a pending delivery older than 24 hours, a failed delivery-health database read, any dead batch, fresh-cache coverage below the configured percentage, and combined live/shadow trigger volume outside a two-standard-deviation CloudWatch anomaly band. The initial coverage threshold is 90% and should be tuned after shadow telemetry. The anomaly model uses hourly points so it can learn the normal daily run pattern and can take up to two weeks to train. Alarm actions remain disabled while `watchlist_threshold_alarm_email` is null; setting it creates an email subscription that the recipient must confirm in AWS.
+
+The metric filters require the whole CloudWatch log event to be valid JSON. A JSON string embedded in the application's normal prefixed log format does not match. Only events with JSON boolean `success: true` feed normal health metrics. A `success: false` delivery-health event feeds a separate failure alarm and must not reset the pending-age alarm. Keep the raw structured-event contract synchronized with the application worker. The missing-evaluation alarm intentionally treats absent data as breaching, so seed a successful event after first apply and before enabling email actions to avoid rollout noise.
 
 The Night-Down Lambda separately uses `AWSLambdaBasicExecutionRole` for its logs and a narrowly scoped EC2 start/stop policy.
 
@@ -226,7 +232,7 @@ Before any explicitly authorized apply:
 6. For prod, plan around its single target and external DNS requirements.
 7. Do not bypass EIP `prevent_destroy` or ALB deletion protection without confirming destruction is intended.
 
-After apply, verify the relevant outputs and live behavior: EC2 boot logs, SSM connectivity, nginx/Docker status, application deployment, target health, HTTPS redirects, DNS, and WAF metrics.
+After apply, verify the relevant outputs and live behavior: EC2 boot logs, SSM connectivity, nginx/Docker status, application deployment, target health, HTTPS redirects, DNS, WAF metrics, and any changed metric-filter/alarm behavior. For Watchlist threshold alarms, confirm the SNS email subscription and exercise both alarm and recovery events in dev before production rollout.
 
 ## Known drift and gaps
 
@@ -235,7 +241,8 @@ After apply, verify the relevant outputs and live behavior: EC2 boot logs, SSM c
 - Prod user data reads the wrong SSM path and writes a dev-labelled placeholder page.
 - AMI variable descriptions reference a nonexistent data-source name.
 - `waf-plan.md` describes rules, logging, and outputs that differ from `waf.tf`.
-- CloudWatch log groups exist without log shipping.
+- Terraform relies on application-owned Docker Compose configuration for CloudWatch log shipping; it does not provision a host-level agent.
+- Watchlist threshold alarm email delivery is intentionally absent until each environment supplies `watchlist_threshold_alarm_email` and the recipient confirms the SNS subscription.
 - The infrastructure prepares hosts but does not deploy the backend or frontend.
 - Staging is only a placeholder.
 

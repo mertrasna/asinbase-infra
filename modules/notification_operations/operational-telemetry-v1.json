@@ -1,0 +1,567 @@
+{
+  "contract_version": "operational-telemetry-v1",
+  "event": "operational_metric_v1",
+  "environments": [
+    "development",
+    "production"
+  ],
+  "units": [
+    "count",
+    "seconds",
+    "tokens"
+  ],
+  "failure_classes": [
+    "storage",
+    "provider",
+    "throttled",
+    "budget",
+    "configuration",
+    "timeout",
+    "lease_lost",
+    "unknown"
+  ],
+  "metrics": {
+    "WorkerHeartbeat": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "WorkerIterationFailure": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "CapabilityFailure": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "CapabilityUnavailable": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "QueuePending": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "ExpiredLeases": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "TerminalErrors": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "TruncatedWindows": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "ProviderThrottle": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "ProviderAdmissionDenied": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "EmailRetry": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "EmailDead": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "EmailAmbiguous": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "EmailAttemptsRollingHour": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "SmtpAttempt": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "InboxCreated": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "SmtpAccepted": {
+      "unit": "count",
+      "kind": "counter"
+    },
+    "ObservedDelivery": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "RecommendationCandidateYield": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "RecommendationPublicationRejected": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "RecommendationWithdrawn": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "RecommendationKillSwitch": {
+      "unit": "count",
+      "kind": "gauge"
+    },
+    "QueueOldestAgeSeconds": {
+      "unit": "seconds",
+      "kind": "gauge"
+    },
+    "IncrementalSyncAgeSeconds": {
+      "unit": "seconds",
+      "kind": "gauge"
+    },
+    "ProviderBudgetRemaining": {
+      "unit": "tokens",
+      "kind": "gauge"
+    },
+    "ProviderBudgetDebt": {
+      "unit": "tokens",
+      "kind": "gauge"
+    },
+    "ProviderTokensRollingHour": {
+      "unit": "tokens",
+      "kind": "gauge"
+    },
+    "IncompleteWindows": {
+      "unit": "count",
+      "kind": "gauge"
+    }
+  },
+  "components": {
+    "account_health": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "amazon_notification_events": [
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "amazon_notification_processing": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "amazon_notification_rechecks": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "amazon_notification_reconciliation": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "billing_notices": [
+      "CapabilityUnavailable",
+      "EmailDead",
+      "EmailRetry",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "billing_reconciliation": [
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "cache_growth_0": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_growth_1": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_growth_2": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_growth_3": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_growth_4": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_growth_5": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_growth_6": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_growth_7": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "cache_maintenance": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "catalog_email": [
+      "CapabilityUnavailable",
+      "EmailDead",
+      "EmailRetry",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "daily_digest": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "data_retention": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "email_catalog": [
+      "CapabilityUnavailable",
+      "EmailAttemptsRollingHour"
+    ],
+    "email_essential": [
+      "CapabilityUnavailable",
+      "EmailAttemptsRollingHour"
+    ],
+    "email_other": [
+      "CapabilityUnavailable",
+      "EmailAttemptsRollingHour"
+    ],
+    "email_total": [
+      "CapabilityUnavailable",
+      "EmailAttemptsRollingHour"
+    ],
+    "essential_email": [
+      "CapabilityUnavailable",
+      "EmailAmbiguous",
+      "EmailDead",
+      "EmailRetry",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "incremental_catalog": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "IncrementalSyncAgeSeconds",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors",
+      "TruncatedWindows",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure",
+      "IncompleteWindows"
+    ],
+    "keepa_catalog_risk": [
+      "CapabilityUnavailable",
+      "ProviderAdmissionDenied",
+      "ProviderThrottle",
+      "ProviderTokensRollingHour"
+    ],
+    "keepa_control": [
+      "CapabilityUnavailable",
+      "ProviderAdmissionDenied",
+      "ProviderThrottle",
+      "ProviderTokensRollingHour"
+    ],
+    "keepa_expansion": [
+      "CapabilityUnavailable",
+      "ProviderAdmissionDenied",
+      "ProviderThrottle",
+      "ProviderTokensRollingHour"
+    ],
+    "keepa_global": [
+      "CapabilityUnavailable",
+      "ProviderBudgetDebt",
+      "ProviderBudgetRemaining"
+    ],
+    "keepa_interactive": [
+      "CapabilityUnavailable",
+      "ProviderAdmissionDenied",
+      "ProviderThrottle",
+      "ProviderTokensRollingHour"
+    ],
+    "keepa_legacy": [
+      "CapabilityUnavailable",
+      "ProviderAdmissionDenied",
+      "ProviderThrottle",
+      "ProviderTokensRollingHour"
+    ],
+    "keepa_replenishment": [
+      "CapabilityUnavailable",
+      "ProviderAdmissionDenied",
+      "ProviderThrottle",
+      "ProviderTokensRollingHour"
+    ],
+    "notification_inbox": [
+      "CapabilityUnavailable",
+      "InboxCreated"
+    ],
+    "observed_delivery": [
+      "CapabilityUnavailable",
+      "ObservedDelivery"
+    ],
+    "operational_metrics": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "personalized": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "portfolio_notification": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "portfolio_review": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "portfolio_review_runs": [
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "portfolio_review_tasks": [
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "recommendation_feed": [
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "RecommendationCandidateYield",
+      "RecommendationKillSwitch",
+      "RecommendationPublicationRejected",
+      "RecommendationWithdrawn",
+      "TerminalErrors"
+    ],
+    "recommendation_profile": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "risk_monitor": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "routine_email": [
+      "CapabilityUnavailable",
+      "EmailAmbiguous",
+      "EmailDead",
+      "EmailRetry",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "seller_catalog": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "smtp_transport": [
+      "EmailAmbiguous",
+      "SmtpAccepted",
+      "SmtpAttempt"
+    ],
+    "sp_api": [
+      "ProviderThrottle"
+    ],
+    "subscription_cancellation": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "urgent_catalog_email": [
+      "CapabilityUnavailable",
+      "EmailAmbiguous",
+      "EmailDead",
+      "EmailRetry",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "watchlist_email": [
+      "CapabilityUnavailable",
+      "EmailDead",
+      "EmailRetry",
+      "ExpiredLeases",
+      "QueueOldestAgeSeconds",
+      "QueuePending",
+      "TerminalErrors"
+    ],
+    "watchlist_threshold_delivery": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ],
+    "watchlist_threshold_evaluation": [
+      "CapabilityFailure",
+      "CapabilityUnavailable",
+      "WorkerHeartbeat",
+      "WorkerIterationFailure"
+    ]
+  },
+  "workers": {
+    "cache_maintenance": 3600,
+    "risk_monitor": 90000,
+    "daily_digest": 90000,
+    "subscription_cancellation": 300,
+    "personalized": 25200,
+    "recommendation_profile": 300,
+    "data_retention": 90000,
+    "account_health": 900,
+    "watchlist_threshold_evaluation": 900,
+    "watchlist_threshold_delivery": 900,
+    "seller_catalog": 600,
+    "incremental_catalog": 900,
+    "amazon_notification_processing": 180,
+    "amazon_notification_rechecks": 180,
+    "amazon_notification_reconciliation": 25200,
+    "portfolio_review": 600,
+    "portfolio_notification": 600,
+    "operational_metrics": 300,
+    "cache_growth_0": 3600,
+    "cache_growth_1": 3600,
+    "cache_growth_2": 3600,
+    "cache_growth_3": 3600,
+    "cache_growth_4": 3600,
+    "cache_growth_5": 3600,
+    "cache_growth_6": 3600,
+    "cache_growth_7": 3600
+  },
+  "email_age_thresholds_seconds": {
+    "essential_email": {
+      "warning": 150,
+      "alarm": 300
+    },
+    "urgent_catalog_email": {
+      "warning": 1800,
+      "alarm": 3600
+    },
+    "routine_email": {
+      "warning": 43200,
+      "alarm": 86400
+    }
+  },
+  "email_attempt_ceiling": {
+    "email_total": 400,
+    "email_essential": 100,
+    "email_catalog": 250,
+    "email_other": 50
+  },
+  "privacy": {
+    "additional_fields": false,
+    "forbidden_identity_dimensions": [
+      "user_id",
+      "seller_id",
+      "asin",
+      "sku",
+      "recipient",
+      "payload",
+      "credential",
+      "exception_message"
+    ]
+  },
+  "unavailable_producers": [
+    "essential_email",
+    "urgent_catalog_email",
+    "routine_email",
+    "email_total",
+    "email_essential",
+    "email_catalog",
+    "email_other",
+    "observed_delivery"
+  ],
+  "runtime_gates": {
+    "ENABLE_OPERATIONAL_TELEMETRY": false,
+    "ENABLE_OPERATIONAL_METRICS_WORKER": false
+  },
+  "semantics": {
+    "heartbeat": "Completed iteration only; scheduled workers emit after their actual scheduled pass, never from a liveness timer. Missing data alarms require explicitly expected workers and their bounded cadence.",
+    "ages": "Original enqueue time; retries and future available_at do not reset backlog age. Empty available queues report zero; unavailable capability emits CapabilityUnavailable only.",
+    "email": "Transport attempts/SMTP acceptance are distinct from shared rolling mailbox budget and observed recipient delivery. Supabase Auth and other mailbox senders are outside this process.",
+    "recommendations": "Private counts only; no recommendation email channel. Publication and policy/cost/cadence remain R6-owned.",
+    "clock": "Database aggregates use one statement clock; future timestamps clamp age to zero.",
+    "counters": "Counter metrics describe events; gauges describe the sampled aggregate state. Do not sum overlapping gauges.",
+    "cache_instances": "When telemetry is enabled, at most eight growth workers are allowed; each has its own fixed component and heartbeat. A healthy shard cannot mask a stalled shard."
+  }
+}

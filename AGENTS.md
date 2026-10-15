@@ -108,7 +108,7 @@ The VPCs are independent despite overlapping CIDRs. There is no peering, NAT gat
 | `prod/waf.tf` | WAF rules and ALB association |
 | `outputs.tf` | Connection details and external DNS handoff values |
 
-There are no shared modules. Duplication is deliberate so each environment can evolve independently.
+Environment topology remains deliberately duplicated. The narrow `modules/notification_operations` module is shared only for the versioned notification/telemetry contract; its literal dev/prod root boundaries and default-off provisioning are documented in `NOTIFICATION_OPERATIONS.md`.
 
 ## AMI and EC2 lifecycle
 
@@ -247,3 +247,12 @@ After apply, verify the relevant outputs and live behavior: EC2 boot logs, SSM c
 - Staging is only a placeholder.
 
 Keep this file and `APPLICATION_INFRASTRUCTURE.md` synchronized with infrastructure changes, at their respective levels of detail.
+
+## Notification operations source contract
+
+`environments/{dev,prod}/notification_operations.tf` invokes the default-disabled notification module.
+It creates no resources until separately approved provisioning. Rules are always DISABLED in source;
+SSM, provider destinations/subscriptions, application gates and recipients are never managed here.
+Read `NOTIFICATION_OPERATIONS.md` before changing or promoting this contract. The offline workflow runs
+mocked provider tests only and has no AWS deployment credentials. The mirrored telemetry JSON must match
+the application canonical contract; maintain its checksum and cross-repository parity together.

@@ -252,3 +252,12 @@ For questions that require checking implementation, use these files in `asinbase
 | Addresses and DNS handoff values | `environments/<env>/outputs.tf` |
 
 The older `environments/dev/wireguard.md` and `environments/prod/waf-plan.md` describe intended or historical states and have known drift. Verify behavior in code before making application assumptions.
+
+## Notification and operational telemetry source (October 15, 2026)
+
+The default-off `notification_operations` module now defines isolated notification queues, partner
+buses/rules, consume-only runtime IAM and bounded operational metric filters/alarms. This is source,
+not evidence of provisioned AWS resources. `NOTIFICATION_OPERATIONS.md` gives exact inputs, output/SSM
+handoff, mocked validation and separate apply/activation/rollback checks. App source must retain false
+telemetry/master worker/email/provider-mutation gates through code promotion; HTTP readiness is not
+independent worker progress. The mirrored `operational-telemetry-v1.json` is the cross-repo metric contract.

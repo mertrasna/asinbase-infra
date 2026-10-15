@@ -1,0 +1,27 @@
+name: Notification infrastructure contracts
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - name: Format notification sources
+        run: |
+          terraform -chdir=modules/notification_operations fmt -check -recursive
+          terraform fmt -check environments/dev/notification_operations.tf environments/prod/notification_operations.tf
+      - name: Initialize isolated module without backend
+        run: terraform -chdir=modules/notification_operations init -backend=false -input=false -lockfile=readonly
+      - name: Validate and test with mocked AWS provider
+        run: |
+          terraform -chdir=modules/notification_operations validate
+          terraform -chdir=modules/notification_operations test
+      - name: Offline cross-environment contracts
+        run: python3 -m unittest discover -s tests -p test_notification_contract.py -v
